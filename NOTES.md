@@ -40,3 +40,16 @@
 
 ### Things I almost messed up
 - [Add anything that confused you, you almost wired wrong, or learned the hard way]
+
+## Day 4 - Mon May 4, 2026 - Cleanup
+
+Restored repo after Thursday's xcopy mess.
+
+Commands learned:
+- git checkout HEAD -- filename → restore a file from last commit
+- del filename → delete a file
+- Remove-Item -Recurse -Force foldername → delete a folder
+
+Lesson: stop when confused. Pushing through commands made the mess worse on Thursday. Stopping and asking saved me 30+ minutes today.
+
+Lesson 2: ALWAYS run git status before git add. Today I added Day 4 notes to README.md by mistake instead of NOTES.md. git status showed me the truth — `modified: README.md` instead of `modified: NOTES.md`. I had to use git checkout HEAD -- README.md again to undo it.
