@@ -53,3 +53,27 @@ Commands learned:
 Lesson: stop when confused. Pushing through commands made the mess worse on Thursday. Stopping and asking saved me 30+ minutes today.
 
 Lesson 2: ALWAYS run git status before git add. Today I added Day 4 notes to README.md by mistake instead of NOTES.md. git status showed me the truth — `modified: README.md` instead of `modified: NOTES.md`. I had to use git checkout HEAD -- README.md again to undo it.
+
+## Day 5 - Tue May 5, 2026 - PowerShell basics
+
+### What I learned
+I learned Power Shell commands today
+
+### Commands to remember
+- pwd → Print Working Directory (where am I?)
+- dir / cat / type → list folder / read file
+- cd / cd .. / cd ~ → navigate
+- del filename → delete a file
+- Remove-Item -Recurse -Force foldername → delete folder + contents
+
+### Path concept
+[Write the absolute vs relative analogy in your own words — like the house address example, but in your words]
+
+### Subtle quirks worth remembering
+- cd C: vs cd C:\ behave differently
+- Empty output from dir = empty folder (NOT a bug)
+- File created via Out-File is UTF-16 (size larger than expected)
+- No Recycle Bin in PowerShell deletes — verify path before pressing Enter
+
+### Today's mistake / lesson
+[Anything that confused you today, or what you'll do differently]
