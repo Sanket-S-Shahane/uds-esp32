@@ -77,3 +77,26 @@ I learned Power Shell commands today
 
 ### Today's mistake / lesson
 [Anything that confused you today, or what you'll do differently]
+
+## Day 6 - Wed May 6, 2026 - Copying and moving files
+
+### What I learned today
+What can I do now in PowerShell that I couldn't yesterday?
+[YOUR ANSWER — 2-3 lines]
+
+### The commands I used today
+For each, write what it does in your own words:
+- Copy-Item source dest → [YOUR ANSWER]
+- Copy-Item -Recurse source dest → [YOUR ANSWER]
+- Move-Item source dest → [YOUR ANSWER]
+- Move-Item used for renaming → [YOUR ANSWER about why this is the same as moving]
+
+### The universal rule for copy and move
+Every copy or move command requires what?
+[YOUR ANSWER — one sentence]
+
+### Why Friday's xcopy failed (compared to today's success)
+[YOUR ANSWER — one sentence about what was missing]
+
+### Mistakes today
+[YOUR ANSWER — "none" is valid if true, or describe any]
