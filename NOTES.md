@@ -100,3 +100,22 @@ Every copy or move command requires what?
 
 ### Mistakes today
 [YOUR ANSWER — "none" is valid if true, or describe any]
+
+## Day 7 - Thu May 7, 2026 - Git deep dive
+
+### What clicked today
+[2-3 lines about the box model and what it means for using Git]
+
+### The four states a file can be in
+[List them in your own words]
+
+### New commands I used today
+- git diff [file] → [what it does in your words]
+- git log --oneline → [what it does]
+- git show [hash] → [what it does]
+
+### Encoding gotcha
+[Short note about UTF-16 vs UTF-8 in PowerShell, and what to use going forward]
+
+### Lesson I want to remember
+[One thing from today you don't want to forget]
