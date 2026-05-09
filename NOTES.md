@@ -119,3 +119,25 @@ Every copy or move command requires what?
 
 ### Lesson I want to remember
 [One thing from today you don't want to forget]
+
+## Day 8 - Fri May 8, 2026 - Git error recovery
+
+### The four "I want to undo" situations
+[Write them in your own words — what's the situation in each, what command fixes it]
+
+### Recovery commands I used today
+- git restore [file] → 
+- git restore --staged [file] → 
+- git reset --soft HEAD~1 → 
+- git reset --hard HEAD~1 → 
+- git revert [hash] → 
+- git reflog → 
+
+### The most important rule
+[When to use reset vs revert — write the rule in your own words]
+
+### Encoding gotcha I saw again today
+[Note about UTF-16 vs UTF-8 still affecting git diff]
+
+### Lesson for myself
+[Something specific you want to remember from today]
