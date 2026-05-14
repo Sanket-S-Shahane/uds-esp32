@@ -1,4 +1,4 @@
-﻿# Notes - uds-esp32
+# Notes - uds-esp32
 
 ## Day 3 - Wed Apr 29, 2026
 
@@ -57,7 +57,15 @@ Lesson 2: ALWAYS run git status before git add. Today I added Day 4 notes to REA
 ## Day 5 - Tue May 5, 2026 - PowerShell basics
 
 ### What I learned
-I learned Power Shell commands today
+I learned Power Shell commands,
+1) pwd : which means print working directory
+2) dir : give the list of files or folders in the directory
+3) cat : also gives the list of the files or folders in the directory
+4) type : is use to read the conetent in the file
+5) cd  : is used to change the path its long form is change directory
+6) del filename : is used to delete the file
+7) Remove-Item -Recurse -Force foldername : is used to delete the folder with the all contenet in that folder like files, subfolder even files from subfolder 
+
 
 ### Commands to remember
 - pwd → Print Working Directory (where am I?)
@@ -67,77 +75,88 @@ I learned Power Shell commands today
 - Remove-Item -Recurse -Force foldername → delete folder + contents
 
 ### Path concept
-[Write the absolute vs relative analogy in your own words — like the house address example, but in your words]
+Absolute path: starts from a drive letter, works from anywhere. Example: E:\Sanket_code_backups\GitHub\uds-esp32\NOTES.md
+Relative path: starts from where you currently are. Example: if you're already in uds-esp32, then NOTES.md alone is a relative path that points to the same file.
 
 ### Subtle quirks worth remembering
 - cd C: vs cd C:\ behave differently
 - Empty output from dir = empty folder (NOT a bug)
 - File created via Out-File is UTF-16 (size larger than expected)
 - No Recycle Bin in PowerShell deletes — verify path before pressing Enter
+- To write UTF-8 in PowerShell: use `Add-Content` or `Set-Content` (UTF-8 by default), or `Out-File -Encoding utf8`. Check version: $PSVersionTable.PSVersion.
 
 ### Today's mistake / lesson
-[Anything that confused you today, or what you'll do differently]
+file size created was UTF-16 and needed UTF-8
 
 ## Day 6 - Wed May 6, 2026 - Copying and moving files
 
 ### What I learned today
-What can I do now in PowerShell that I couldn't yesterday?
-[YOUR ANSWER — 2-3 lines]
+Today I learn aboute the copy pate files, folders as well as moving the files folders also important note there must be source and destination location in command
 
 ### The commands I used today
 For each, write what it does in your own words:
-- Copy-Item source dest → [YOUR ANSWER]
-- Copy-Item -Recurse source dest → [YOUR ANSWER]
-- Move-Item source dest → [YOUR ANSWER]
-- Move-Item used for renaming → [YOUR ANSWER about why this is the same as moving]
+- Copy-Item source dest → it compies the item from source into destination, keeping source item intact
+- Copy-Item -Recurse source dest → it copies folder with all files sunfolder and files under subfolder to destination location
+- Move-Item source dest → it moves the item from source to destination its like chnaging the path of the Item
+- Move-Item used for renaming → move item is like changing the path of old file and making the new so even its like the renaming as well
 
 ### The universal rule for copy and move
 Every copy or move command requires what?
-[YOUR ANSWER — one sentence]
+must have source address as well as destination address
 
 ### Why Friday's xcopy failed (compared to today's success)
-[YOUR ANSWER — one sentence about what was missing]
+the destination address was missing
 
 ### Mistakes today
-[YOUR ANSWER — "none" is valid if true, or describe any]
+None
 
 ## Day 7 - Thu May 7, 2026 - Git deep dive
 
 ### What clicked today
-[2-3 lines about the box model and what it means for using Git]
+Working directory — files on disk, means the files which are in the working directory
+Staging area — changes about to be committed (after git add), changes which are staged meand after git add
+Repository — committed snapshots (after git commit), repsository is dtored on git where the data is committed
 
 ### The four states a file can be in
-[List them in your own words]
+Untracked — file exists on disk, Git doesn't know about it yet (new file Git has never seen), means the new files or the file which never added or nvere been on repository
+Modified (working dir) — file is tracked, has changes not yet staged, means the alredy available file changed
+Staged — changes are in staging, ready to commit (after git add), means changed file has been added and now we can commit it to repository
+Committed — changes saved in repository as a snapshot (after git commit), means the chnaged file or files on working directory has been committed to repository
 
 ### New commands I used today
-- git diff [file] → [what it does in your words]
-- git log --oneline → [what it does]
-- git show [hash] → [what it does]
+- git diff [file] → it shows the what changed in file
+- git log --oneline → it shows chain of commits or can say details of commit
+- git show [hash] → it shows full details of that partiular commit
 
 ### Encoding gotcha
-[Short note about UTF-16 vs UTF-8 in PowerShell, and what to use going forward]
+Git required UTF-8 file if we generate or change the file from power shell it is in format of UTF-16
 
 ### Lesson I want to remember
-[One thing from today you don't want to forget]
+the boxes or can say position of files
 
 ## Day 8 - Fri May 8, 2026 - Git error recovery
 
 ### The four "I want to undo" situations
+1) When I made the changes in any file now I want to undo the changes use git restore
+2) When I made the changes in any file and did git add now I want to undo the changes use git restore --staged
+3) When I made the changes in any file and did git add  also commited the file now I want to undo the changes use first use git reset --soft HEAD~1then use restore --staged or can directlu use git reset --hard HEAD~1 
+4) When I made a changes and committed it now i want to undo thoses changes with comment then use git revert
+
 [Write them in your own words — what's the situation in each, what command fixes it]
 
 ### Recovery commands I used today
-- git restore [file] → 
-- git restore --staged [file] → 
-- git reset --soft HEAD~1 → 
-- git reset --hard HEAD~1 → 
-- git revert [hash] → 
-- git reflog → 
+- git restore [file] → Restores the working directory version of the file from the last commit (discard local unstaged changes in that file)
+- git restore --staged [file] → Removes the file from the staging area (git add) but keeps the actual file changes in your working directory
+- git reset --soft HEAD~1 → Moves HEAD back by one commit, but keeps all changes staged 
+- git reset --hard HEAD~1 → Removes the last commit AND deletes all associated working directory/staged changes permanently
+- git revert [hash] → Creates a new commit that undoes the changes introduced by a specific commit
+- git reflog → Shows the history of where HEAD and branch pointers moved
 
 ### The most important rule
-[When to use reset vs revert — write the rule in your own words]
+Think twice before using git reset --hard HEAD~1
 
 ### Encoding gotcha I saw again today
-[Note about UTF-16 vs UTF-8 still affecting git diff]
+Git treates the UTF-16 file as a binary so always the file content should be UTF-8 format
 
 ### Lesson for myself
-[Something specific you want to remember from today]
+if any changes is done and added or commited to repository even though restores back to normal still kind hide whatever we have done because of git reflog 
