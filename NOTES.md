@@ -237,3 +237,44 @@ The three config files: I initially confused sdkconfig.defaults (user‑written,
 
 ### One thing to remember
 Always use vTaskDelay() in ESP‑IDF. Never use a busy‑loop delay (for (int i=0; i<1000000; i++);) – it blocks the whole system and will cause a watchdog timeout. vTaskDelay() yields the CPU so FreeRTOS can run other tasks.
+
+## Day 12 - Tue May 12, 2026 - menuconfig hands-on
+
+### Why we studied this
+menuconfig is the tool I will use to enable the TWAI/CAN driver and configure its baud rate, filters, and pin assignments next week. Today I learned how to open it, change a setting, save, rebuild, and see the effect on hardware – the exact workflow for configuring any ESP‑IDF driver.
+
+### What I learned
+- **menuconfig is a text‑based configuration menu** (blue screen, keyboard only). It lets me change settings without editing C code.
+- **Navigation keys**: arrows (move), Enter (enter submenu), Space (toggle checkboxes), `/` (search), `S` (save), `Q` (quit).
+- **The config chain** :
+  - Change `Blink GPIO number` from 5 to 2 in `Example Configuration`.
+  - Save to `sdkconfig` (auto‑generated, gitignored).
+  - `idf.py build` generates `sdkconfig.h` with `#define CONFIG_BLINK_GPIO 2`.
+  - The C macro `#define BLINK_GPIO CONFIG_BLINK_GPIO` picks up the value.
+  - `gpio_set_level()` drives GPIO 2 → onboard LED blinks.
+- **Plain PowerShell vs ESP‑IDF terminal**: `idf.py` only works in the terminal where the environment variables and Python venv are loaded. The prompt shows `(venv)` when it's active.
+- **Select‑String** is PowerShell’s equivalent of `grep` – used to verify config changes inside `sdkconfig`.
+
+### Commands / code I used
+
+
+cd E:\Sanket_code_backups\GitHub\idf_blink_test
+idf.py --version                     # confirm environment
+idf.py set-target esp32              # set chip (triggers fullclean)
+idf.py menuconfig                    # open the blue config menu
+# Inside menuconfig: ↓ to Example Configuration → Enter → ↓ to (5) Blink GPIO number → Enter → type 2 → Enter → S (save) → Enter → Q (quit)
+Select-String "CONFIG_BLINK_GPIO" sdkconfig   # verify value in file
+idf.py build                         # compile with new config
+idf.py -p COM9 flash                 # flash to ESP32
+idf.py -p COM9 monitor               # view serial output
+# Exit monitor: Ctrl+] 
+
+
+### Mistakes / things that confused me
+Saving twice: I saved, then later pressed S again. menuconfig said "no changes to save" – We thought the setting was lost, but it was already saved. The message just means nothing new to write.
+
+Plain terminal vs ESP‑IDF terminal: I first ran idf.py in a normal PowerShell and got not recognized. I learned to look for the (venv) prompt – that’s the signal the environment is loaded.
+
+
+### One thing to remember
+The entire configuration chain is: menuconfig → sdkconfig → sdkconfig.h → C macro → hardware. Changing a single number in the blue menu and saving propagates all the way to the physical pin. This is how I will enable and configure the CAN driver next week without touching C code.
