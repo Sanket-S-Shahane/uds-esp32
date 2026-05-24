@@ -160,3 +160,80 @@ Git treates the UTF-16 file as a binary so always the file content should be UTF
 
 ### Lesson for myself
 if any changes is done and added or commited to repository even though restores back to normal still kind hide whatever we have done because of git reflog 
+
+## Day 11 - Monday May 11, 2026 - ESP‑IDF Project Structure Deep Dive
+
+### Why we studied this
+To understand every file in an ESP-IDF project so I can navigate any example or open‑source project, and to prepare for adding my own CAN driver next week.
+
+### What I learned
+1. Two CMakeLists.txt files
+- Top‑level `CMakeLists.txt` (root folder): boilerplate – sets project name, includes ESP‑IDF's `project.cmake`, enables minimal build. Does NOT list source files.
+- `main/CMakeLists.txt`: calls `idf_component_register(SRCS "file.c" INCLUDE_DIRS ".")`. Every `.c` file must be in `SRCS`; `INCLUDE_DIRS` tells where header files are (`.` = current folder).
+
+2. Structure of `blink_example_main.c`
+- Includes: `<stdio.h>` (standard C), `"freertos/FreeRTOS.h"`, `"driver/gpio.h"`, `"esp_log.h"`, `"sdkconfig.h"` (auto‑generated from menuconfig).
+- Configuration defines: `#define BLINK_GPIO CONFIG_BLINK_GPIO` – makes pin changeable via menuconfig without editing C code.
+- Static module variable: `static uint8_t s_led_state = 0;` – holds current LED state, private to this file.
+- Helper functions (`static`):
+  - `configure_led()`: runs once. Calls `gpio_reset_pin()` (defensive init) then `gpio_set_direction(..., GPIO_MODE_OUTPUT)`.
+  - `blink_led()`: runs every loop. Calls `gpio_set_level(BLINK_GPIO, s_led_state)`.
+- `app_main()`: entry point called by ESP‑IDF startup. Pattern:
+  ```
+  configure_led();            // one‑time
+  while (1) {
+      blink_led();            // action
+      s_led_state = !s_led_state;  // toggle state
+      vTaskDelay(CONFIG_BLINK_PERIOD / portTICK_PERIOD_MS);
+  }'''
+3. FreeRTOS delay vs blocking delay
+
+vTaskDelay() yields CPU to FreeRTOS – other tasks can run, watchdog doesn't trip.
+
+Bare‑metal for‑loop delay blocks everything, causes watchdog resets – never use in ESP‑IDF.
+
+4. Three configuration files
+
+sdkconfig.defaults: written by user, committed to Git. Sets default config values for fresh builds.
+
+sdkconfig: auto‑generated, gitignored. Holds current menuconfig choices. Changes when you run idf.py menuconfig.
+
+sdkconfig.h: auto‑generated from sdkconfig during build. Contains #define CONFIG_* macros. Included in C code – never edited manually.
+
+Chip‑specific overrides: sdkconfig.defaults.esp32, sdkconfig.defaults.esp32s3, etc. allow one project to run on different ESP32 variants.
+
+
+### Commands / code I used
+
+cd E:\Sanket_code_backups\GitHub\idf_blink_test
+pwd
+dir
+code CMakeLists.txt
+code main/CMakeLists.txt
+code main/blink_example_main.c
+type sdkconfig.defaults
+Key code patterns:
+
+c
+// Static function – private to this file
+static void configure_led(void) { ... }
+
+// Using config macro
+#define BLINK_GPIO CONFIG_BLINK_GPIO
+
+// vTaskDelay with milliseconds
+vTaskDelay(1000 / portTICK_PERIOD_MS);  // 1 second delay
+
+// Toggle state
+s_led_state = !s_led_state;
+
+### Mistakes / things that confused me
+Static functions: I thought static meant "can be called from anywhere". It actually means private to this file (encapsulation). Non‑static functions are visible across the whole project.
+
+File scope vs function scope: I didn't understand why s_led_state was outside app_main(). The reason: both app_main() and blink_led() need to access it. File scope makes it visible to all functions in the file.
+
+The three config files: I initially confused sdkconfig.defaults (user‑written, in Git) with sdkconfig (auto‑generated, gitignored). Now I know: .defaults = starting defaults; sdkconfig = current state.
+
+
+### One thing to remember
+Always use vTaskDelay() in ESP‑IDF. Never use a busy‑loop delay (for (int i=0; i<1000000; i++);) – it blocks the whole system and will cause a watchdog timeout. vTaskDelay() yields the CPU so FreeRTOS can run other tasks.
