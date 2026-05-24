@@ -258,7 +258,7 @@ menuconfig is the tool I will use to enable the TWAI/CAN driver and configure it
 ### Commands / code I used
 
 
-cd E:\Sanket_code_backups\GitHub\idf_blink_test
+```cd E:\Sanket_code_backups\GitHub\idf_blink_test
 idf.py --version                     # confirm environment
 idf.py set-target esp32              # set chip (triggers fullclean)
 idf.py menuconfig                    # open the blue config menu
@@ -267,7 +267,7 @@ Select-String "CONFIG_BLINK_GPIO" sdkconfig   # verify value in file
 idf.py build                         # compile with new config
 idf.py -p COM9 flash                 # flash to ESP32
 idf.py -p COM9 monitor               # view serial output
-# Exit monitor: Ctrl+] 
+# Exit monitor: Ctrl+] ```
 
 
 ### Mistakes / things that confused me
