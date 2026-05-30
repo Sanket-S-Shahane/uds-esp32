@@ -654,3 +654,318 @@ The location of configuration depends on how often the setting changes:
 
 This helped me understand why different ESP-IDF drivers use slightly different APIs even though they follow the same overall peripheral lifecycle pattern.
 
+## Day 15 - Fri May 15, 2026 - first real TWAI driver setup in uds-esp32
+
+### Why we studied this
+
+Everything from Day 1 until now was preparation for writing actual CAN firmware on the real project repository `uds-esp32`. Today I created the first real ESP-IDF firmware structure inside the project and successfully initialized the TWAI/CAN driver on actual ESP32 hardware. The goal was not transmitting or receiving CAN frames yet — only proving that the TWAI driver installs, starts, and keeps running correctly.
+
+### What I learned
+
+* **`uds-esp32` changed from a docs-only repo into a real firmware project**
+
+  * Added:
+
+    * top-level `CMakeLists.txt`
+    * `main/` component folder
+    * `main/CMakeLists.txt`
+    * `main/uds_esp32_main.c`
+
+* **Top-level `CMakeLists.txt`**
+
+  * Defines project name:
+
+    ```cmake
+    project(uds_esp32)
+    ```
+  * The project name becomes:
+
+    ```text
+    uds_esp32.bin
+    ```
+
+* **`REQUIRES driver` in component CMakeLists**
+
+  * New concept introduced today.
+  * Required for linking ESP-IDF peripheral drivers like TWAI, UART, SPI, etc.
+  * Without this:
+
+    ```text
+    twai.h: No such file or directory
+    ```
+
+    type build errors would occur.
+
+* **First real application of the 6-stage peripheral pattern**
+
+  * Stage 1 → define config structs
+  * Stage 2 → install driver
+  * Stage 3 → start driver
+  * Stage 4 → heartbeat loop proving runtime execution
+  * Stage 5/6 not used yet because firmware runs forever
+
+* **TWAI initialization structure**
+
+  * `twai_general_config_t`
+
+    * TX/RX pins
+    * operating mode
+  * `twai_timing_config_t`
+
+    * CAN baud rate
+  * `twai_filter_config_t`
+
+    * message filtering
+
+* **GPIO routing on ESP32**
+
+  * GPIO 5 and GPIO 4 are NOT fixed UART2 pins.
+  * ESP32 uses the GPIO Matrix, meaning peripherals can be routed to many GPIOs through software configuration.
+  * TWAI TX/RX pins are chosen inside:
+
+    ```c
+    TWAI_GENERAL_CONFIG_DEFAULT(...)
+    ```
+
+* **Error checking using `ESP_OK`**
+
+  * ESP-IDF driver functions return status codes.
+  * `ESP_OK` means success.
+  * Proper embedded code checks failures explicitly:
+
+    ```c
+    if (twai_start() != ESP_OK)
+    ```
+
+* **ESP logging system**
+
+  * `ESP_LOGI()` → informational log
+  * `ESP_LOGE()` → error log
+  * Logs contain timestamps automatically.
+
+* **Heartbeat loop purpose**
+
+  * Proves firmware continues running after initialization.
+  * Confirms:
+
+    * FreeRTOS scheduling works
+    * `vTaskDelay()` timing works
+    * firmware did not crash
+
+* **FreeRTOS timing verification**
+
+  * Serial monitor timestamps increased exactly by 1000 ms:
+
+    ```text
+    I (1276) ...
+    I (2276) ...
+    ```
+  * Verified `vTaskDelay(1000 / portTICK_PERIOD_MS)` operation.
+
+* **Build/debugging lessons**
+
+  * Build errors usually directly describe the real problem.
+  * Today’s CMake error:
+
+    ```text
+    Cannot find source file
+    ```
+
+    was caused by a typo folder:
+
+    ```text
+    mian/
+    ```
+
+    instead of:
+
+    ```text
+    main/
+    ```
+
+* **Debugging workflow reinforced again**
+
+  * Read error carefully
+  * Compare expected path vs actual path
+  * Fix mismatch
+  * Rebuild
+
+### Commands / code I used
+
+Project setup:
+
+```powershell
+cd E:\Sanket_code_backups\GitHub\uds-esp32
+
+mkdir main
+
+code CMakeLists.txt
+code main/CMakeLists.txt
+code main/uds_esp32_main.c
+```
+
+Activate ESP-IDF environment:
+
+```powershell
+& 'C:\Espressif\tools\Microsoft.v5.5.4.PowerShell_profile.ps1'
+
+idf.py --version
+```
+
+Build and flash:
+
+```powershell
+idf.py set-target esp32
+
+idf.py build
+
+idf.py -p COM9 flash
+
+idf.py -p COM9 monitor
+```
+
+Git workflow:
+
+```powershell
+git add CMakeLists.txt main/
+
+git commit -m "Day 15: minimum viable TWAI driver - install, start, heartbeat"
+
+git push
+```
+
+Top-level `CMakeLists.txt`:
+
+```cmake
+cmake_minimum_required(VERSION 3.16)
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(uds_esp32)
+```
+
+Component `main/CMakeLists.txt`:
+
+```cmake
+idf_component_register(SRCS "uds_esp32_main.c"
+                       INCLUDE_DIRS "."
+                       REQUIRES driver)
+```
+
+Main firmware:
+
+```c
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/twai.h"
+#include "esp_log.h"
+
+static const char *TAG = "uds_esp32";
+
+static void can_init(void)
+{
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(
+        GPIO_NUM_5,
+        GPIO_NUM_4,
+        TWAI_MODE_NORMAL
+    );
+
+    twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
+
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+
+    if (twai_driver_install(&g_config, &t_config, &f_config) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to install TWAI driver");
+        return;
+    }
+
+    ESP_LOGI(TAG, "TWAI driver installed");
+
+    if (twai_start() != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to start TWAI driver");
+        return;
+    }
+
+    ESP_LOGI(TAG, "TWAI driver started");
+}
+
+void app_main(void)
+{
+    ESP_LOGI(TAG, "uds-esp32 starting up");
+
+    can_init();
+
+    int counter = 0;
+
+    while (1) {
+        ESP_LOGI(TAG, "alive, counter = %d", counter);
+        counter++;
+
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+```
+
+### Mistakes / things that confused me
+
+* I initially got confused whether GPIO 5 and GPIO 4 were UART2 TX/RX pins.
+
+  * Later understood:
+
+    * they are normal GPIOs
+    * ESP32 GPIO Matrix routes TWAI signals to selected pins
+
+* I accidentally created:
+
+  ```text
+  mian/
+  ```
+
+  instead of:
+
+  ```text
+  main/
+  ```
+
+* This caused the CMake error:
+
+  ```text
+  Cannot find source file
+  ```
+
+* The actual problem:
+
+  * `CMakeLists.txt` expected:
+
+    ```text
+    main/uds_esp32_main.c
+    ```
+  * But the file existed in:
+
+    ```text
+    mian/uds_esp32_main.c
+    ```
+
+* Fixed using:
+
+  ```powershell
+  Move-Item
+  Remove-Item
+  ```
+
+* This reinforced that build systems usually tell the exact problem if I carefully read the error message.
+
+### One thing to remember
+
+Today was the first time real TWAI/CAN firmware successfully ran on the `uds-esp32` project. The ESP32 successfully:
+
+* booted
+* installed the TWAI driver
+* started the TWAI driver
+* entered the heartbeat loop
+* logged periodic messages every second
+
+The important lesson was not only CAN initialization, but understanding the complete workflow:
+
+**project setup → build system → driver configuration → installation → start → runtime logging → debugging → Git commit**
+
+This was the first real firmware milestone for the project.
