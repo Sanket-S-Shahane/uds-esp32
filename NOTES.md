@@ -969,3 +969,249 @@ The important lesson was not only CAN initialization, but understanding the comp
 **project setup → build system → driver configuration → installation → start → runtime logging → debugging → Git commit**
 
 This was the first real firmware milestone for the project.
+
+
+## Day 16 - Sat May 16, 2026 - first CAN frame transmission using TWAI
+
+### Why we studied this
+
+Yesterday the TWAI driver successfully installed and started, but no actual CAN data was being transmitted. Today the goal was to send the first real CAN frame from the ESP32 using `twai_transmit()`. This was the first time the ESP32 physically transmitted CAN data through the SN65HVD230 transceiver. The focus was understanding CAN frame structure, self-test mode, and transmit verification.
+
+### What I learned
+
+* **CAN transmission requires ACK in normal mode**
+
+  * On a real CAN bus, at least one other node must acknowledge the frame.
+  * If no ACK is received:
+
+    * retransmissions happen
+    * error counters increase
+    * controller can eventually enter bus-off state
+
+* **Why `TWAI_MODE_NO_ACK` is needed**
+
+  * Only one CAN node was connected today.
+  * No second node existed to provide ACK.
+  * `TWAI_MODE_NO_ACK` allows transmission without requiring another node to acknowledge the frame.
+  * The frame still physically goes out on the wire.
+
+* **The 4 important CAN frame fields**
+
+  * Identifier → CAN ID
+  * DLC → data length code
+  * Data → payload bytes
+  * Flags → standard/extended frame settings
+
+* **`twai_message_t` represents a CAN frame**
+
+  * All CAN frame information is stored in this struct.
+  * Example fields:
+
+    ```c
+    .identifier
+    .data_length_code
+    .data[]
+    ```
+
+* **Transmit function structure**
+
+  * Created:
+
+    ```c
+    can_transmit_test()
+    ```
+  * Builds one CAN frame and sends it using:
+
+    ```c
+    twai_transmit()
+    ```
+
+* **`twai_transmit()` timeout**
+
+  * Used:
+
+    ```c
+    pdMS_TO_TICKS(1000)
+    ```
+  * Allows transmit function to wait up to 1 second before timing out.
+
+* **Checking transmit success**
+
+  * `twai_transmit()` returns:
+
+    ```c
+    esp_err_t
+    ```
+  * Compared result against:
+
+    ```c
+    ESP_OK
+    ```
+  * Successful transmits logged:
+
+    ```text
+    TX ok
+    ```
+
+* **Using `counter` as payload data**
+
+  * Added:
+
+    ```c
+    data[0] = counter
+    ```
+  * This proved each transmitted frame was fresh and changing over time instead of repeating the same data.
+
+* **FreeRTOS timing verification**
+
+  * `vTaskDelay(2000 / portTICK_PERIOD_MS)` produced highly accurate 2-second timing.
+  * Serial monitor timestamps confirmed:
+
+    ```text
+    287
+    2287
+    4287
+    6287
+    ```
+  * Exactly 2000 ms apart.
+
+* **Real CAN transmission happened**
+
+  * Even without another node connected, the ESP32 and SN65HVD230 physically transmitted CAN frames on CANH/CANL lines.
+  * If measured with an oscilloscope, actual CAN signaling would be visible.
+
+* **Protocol stack understanding**
+
+  * Today completed Layer 2:
+
+    ```text
+    Raw CAN frame transmission
+    ```
+  * Stack progress:
+
+    ```text
+    UDS
+    ISO-TP
+    CAN ← current layer
+    Physical layer
+    ```
+
+### Commands / code I used
+
+Build and flash:
+
+```powershell
+idf.py build
+
+idf.py -p COM9 flash
+
+idf.py -p COM9 monitor
+```
+
+Git workflow:
+
+```powershell
+git status
+
+git add main/uds_esp32_main.c
+
+git commit -m "Day 16 : first CAN transmit - NO_ACK mode, ID 0x123, 8-byte payload"
+
+git push
+```
+
+TWAI mode change:
+
+```c
+TWAI_MODE_NO_ACK
+```
+
+Transmit function:
+
+```c
+static void can_transmit_test(uint32_t counter)
+{
+    twai_message_t message = {
+        .identifier = 0x123,
+        .data_length_code = 8,
+        .data = {
+            (uint8_t)(counter & 0xFF),
+            0xAA,
+            0xBB,
+            0xCC,
+            0xDD,
+            0xEE,
+            0xFF,
+            0x00
+        }
+    };
+
+    esp_err_t result = twai_transmit(&message, pdMS_TO_TICKS(1000));
+
+    if (result == ESP_OK) {
+        ESP_LOGI(TAG, "TX ok: ID=0x123 DLC=8 data[0]=0x%02x",
+                 message.data[0]);
+    } else {
+        ESP_LOGE(TAG, "TX failed");
+    }
+}
+```
+
+Runtime loop:
+
+```c
+while (1) {
+    ESP_LOGI(TAG, "alive, counter = %d", counter);
+
+    can_transmit_test(counter);
+
+    counter++;
+
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+}
+```
+
+Monitor output:
+
+```text
+I (277) uds_esp32: alive, counter = 0
+I (287) uds_esp32: TX ok: ID=0x123 DLC=8 data[0]=0x00
+
+I (2287) uds_esp32: alive, counter = 1
+I (2287) uds_esp32: TX ok: ID=0x123 DLC=8 data[0]=0x01
+
+I (4287) uds_esp32: alive, counter = 2
+I (4287) uds_esp32: TX ok: ID=0x123 DLC=8 data[0]=0x02
+```
+
+### Mistakes / things that confused me
+
+* Initially mixed up:
+
+  * CAN node
+  * CAN bus
+
+* Later understood:
+
+  * node = one device
+  * bus = shared communication line between devices
+
+* Initially referred to CAN ID as “request ID.”
+
+* Later understood:
+
+  * raw CAN layer calls it Identifier/CAN ID
+  * UDS request IDs are protocol-layer concepts built on top of CAN IDs
+
+* Needed clarification on why ACK is important.
+
+* Learned ACK confirms:
+
+  * another node exists on the bus
+  * frame was received without CRC errors
+
+### One thing to remember
+
+Today the ESP32 successfully transmitted real CAN frames every 2 seconds using `twai_transmit()`. The important lesson was understanding that CAN transmission is not just software logging — the ESP32 controller and transceiver were physically generating differential CAN signals on the CAN bus lines.
+
+I also understood why `TWAI_MODE_NO_ACK` is necessary for single-node testing and how CAN acknowledgements normally work on a real automotive bus.
