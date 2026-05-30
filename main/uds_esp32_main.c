@@ -21,7 +21,7 @@ static void can_init(void)
     (
         GPIO_NUM_5,          // CAN TX pin ( to SN65HVD230 CTX)
         GPIO_NUM_4,          // CAN RX pin ( from SN65HVD230 CRX)
-        TWAI_MODE_NORMAL
+        TWAI_MODE_NO_ACK
     );
     twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
@@ -43,6 +43,36 @@ static void can_init(void)
     ESP_LOGI(TAG, "TWAI driver started");
 }
 
+static void can_transmit_test(uint32_t counter)
+{
+    twai_message_t message = {
+        .identifier = 0x123,
+        .data_length_code = 8,
+        .data = {
+            (uint8_t)(counter & 0xFF),
+            0xAA,
+            0xBB,
+            0xCC,
+            0xDD,
+            0xEE,
+            0xFF,
+            0X00
+        }
+    };
+
+    esp_err_t result = twai_transmit(&message, pdMS_TO_TICKS(1000));
+
+    if (result == ESP_OK) {
+        ESP_LOGI(TAG, "TX ok: ID=0x%lx DLC=%d data[0]=0x%02x",
+                 message.identifier,
+                 message.data_length_code,
+                 message.data[0]);
+    }
+    else {
+        ESP_LOGE(TAG, "TX failed: esp_err = %d", result);
+    }
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "uds-esp32 starting up");
@@ -54,7 +84,8 @@ void app_main(void)
     while(1)
     {
         ESP_LOGI(TAG, "alive, counter = %d", counter);
+        can_transmit_test(counter);
         counter++;
-        vTaskDelay(1000/portTICK_PERIOD_MS);
+        vTaskDelay(2000/portTICK_PERIOD_MS);
     }
 }
