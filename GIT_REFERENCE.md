@@ -125,3 +125,62 @@ git push                      # send to GitHub
 | `git reset --hard HEAD~1` | Undo last commit, throw away changes (dangerous) |
 | `git revert <hash>` | Make a new commit that undoes an old one |
 | `git reflog` | Show history of HEAD positions (recovery safety net) |
+
+
+
+### Repository already exists on GitHub
+
+Error:
+
+```text
+! [rejected] main -> main (fetch first)
+error: failed to push some refs
+```
+
+Cause:
+The GitHub repository already contains commits (README, LICENSE, .gitignore, etc.).
+
+Fix:
+
+```bash
+git pull origin main --allow-unrelated-histories
+git push -u origin main
+```
+
+Alternative (overwrite GitHub repository):
+
+```bash
+git push -u origin main --force
+```
+
+WARNING: `--force` replaces the contents of the remote repository.
+
+
+
+### Check which GitHub repository is connected
+
+```bash
+git remote -v
+```
+
+Example output:
+
+```text
+origin  https://github.com/USERNAME/REPOSITORY.git (fetch)
+origin  https://github.com/USERNAME/REPOSITORY.git (push)
+```
+
+
+### View commit history
+
+Compact view:
+
+```bash
+git log --oneline
+```
+
+Detailed view:
+
+```bash
+git log
+```
