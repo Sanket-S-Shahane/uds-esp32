@@ -267,7 +267,8 @@ Select-String "CONFIG_BLINK_GPIO" sdkconfig   # verify value in file
 idf.py build                         # compile with new config
 idf.py -p COM9 flash                 # flash to ESP32
 idf.py -p COM9 monitor               # view serial output
-# Exit monitor: Ctrl+] ```
+# Exit monitor: Ctrl+]
+ ```
 
 
 ### Mistakes / things that confused me
@@ -278,3 +279,162 @@ Plain terminal vs ESP‑IDF terminal: I first ran idf.py in a normal PowerShell 
 
 ### One thing to remember
 The entire configuration chain is: menuconfig → sdkconfig → sdkconfig.h → C macro → hardware. Changing a single number in the blue menu and saving propagates all the way to the physical pin. This is how I will enable and configure the CAN driver next week without touching C code.
+
+## Day 13 - Wed May 13, 2026 - creating an ESP-IDF project from scratch
+
+### Why we studied this
+Until now I was modifying existing ESP-IDF examples like `idf_blink_test`. But for the CAN/TWAI work next week, I need to create my own project structure instead of depending on example projects. Today I learned how to build an ESP-IDF project completely from an empty folder: creating the directory structure manually, writing both `CMakeLists.txt` files myself, writing my own `app_main()`, building, debugging, flashing, and running it on actual ESP32 hardware.
+
+### What I learned
+- **A minimal ESP-IDF project structure** contains:
+  - A top-level `CMakeLists.txt`
+  - A `main` component folder
+  - A component-level `main/CMakeLists.txt`
+  - At least one `.c` source file containing `app_main()`
+
+- **`main` is a component**:
+  - A component is a folder containing related `.c/.h` files plus a `CMakeLists.txt`.
+  - ESP-IDF projects are built from components.
+  - `main` is special because ESP-IDF expects `app_main()` inside it and uses it as the application entry point.
+
+- **Project root vs component folder**:
+  - Project-level files (`sdkconfig`, top-level `CMakeLists.txt`) live in the project root.
+  - Component-specific files live inside their component folders (`main/`, future `can_driver/`, etc.).
+
+- **Top-level `CMakeLists.txt` purpose**:
+  - Defines minimum CMake version.
+  - Loads ESP-IDF build infrastructure.
+  - Defines project name.
+  - The project name becomes the output binary name (`hello_from_scratch.bin`).
+
+- **What “build infrastructure” means**:
+  - ESP-IDF’s build system automatically:
+    - Finds the Xtensa compiler
+    - Loads compiler flags
+    - Finds ESP-IDF components
+    - Compiles source files
+    - Links firmware
+    - Generates bootloader and partition table
+    - Produces flashable `.bin` files
+  - This all comes from:
+    ```cmake
+    include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+    ```
+
+- **Component-level `CMakeLists.txt` purpose**:
+  - Uses `idf_component_register()` to declare which source files belong to the component.
+
+- **`app_main()` basics**:
+  - ESP-IDF calls `app_main()` automatically after boot.
+  - `while(1)` creates an infinite loop.
+  - `vTaskDelay()` pauses execution while allowing FreeRTOS scheduling.
+
+- **Compiler error reading**:
+  - Compiler errors follow:
+    ```
+    file:line:column: error message
+    ```
+  - Example:
+    ```
+    hello_world_main.c:2:10: fatal error: freeeros/FreeRTOS.h: No such file or directory
+    ```
+  - The compiler directly pointed to:
+    - file = `hello_world_main.c`
+    - line = 2
+    - typo = `freeeros`
+  - Fixing the typo fixed the build.
+
+- **Real embedded workflow**:
+  - Build fails → read error carefully → identify root cause → fix → rebuild.
+  - Debugging build issues calmly is part of normal embedded development.
+
+### Commands / code I used
+
+```powershell
+cd E:\Sanket_code_backups\GitHub
+mkdir hello_from_scratch
+cd hello_from_scratch
+mkdir main
+
+# Create top-level CMakeLists.txt
+code CMakeLists.txt
+
+# Create component-level CMakeLists.txt
+code main/CMakeLists.txt
+
+# Create source file
+code main/hello_world_main.c
+
+idf.py set-target esp32
+idf.py build
+idf.py -p COM9 flash
+idf.py -p COM9 monitor
+
+# Exit monitor
+Ctrl + ]
+```
+
+Top-level `CMakeLists.txt`:
+
+```cmake
+cmake_minimum_required(VERSION 3.16)
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(hello_from_scratch)
+```
+
+Component-level `main/CMakeLists.txt`:
+
+```cmake
+idf_component_register(SRCS "hello_world_main.c"
+                       INCLUDE_DIRS ".")
+```
+
+`hello_world_main.c`:
+
+```c
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+void app_main(void)
+{
+    int counter = 0;
+
+    while (1) {
+        printf("Hello from scratch! Count = %d\n", counter);
+        counter++;
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+```
+
+### Mistakes / things that confused me
+- I was initially confused about what the `main` folder actually is.
+  - I thought it also stored configuration files.
+  - Later I understood:
+    - `main` is just the default component.
+    - Config files like `sdkconfig` live in the project root.
+
+- I got a build failure because of a typo:
+  ```c
+  #include "freeeros/FreeRTOS.h"
+  ```
+  instead of:
+  ```c
+  #include "freertos/FreeRTOS.h"
+  ```
+
+- The compiler error looked intimidating at first, but once I read it carefully, it clearly showed:
+  - exact file
+  - exact line
+  - exact include that failed
+
+- I learned not to panic when builds fail. The important step is reading the *first actual error message* carefully instead of scrolling randomly.
+
+### One thing to remember
+Today I created a complete ESP-IDF project from an empty folder and got it running on real hardware. The important learning was not just “hello world,” but understanding the full structure:
+
+**project root → components → build system → firmware binary → ESP32 execution**
+
+I also learned that compiler errors are usually very precise if I read them carefully. A single typo caused the build to fail, and the compiler directly told me where the problem was. This debug-and-fix cycle is a core embedded engineering skill.
+
