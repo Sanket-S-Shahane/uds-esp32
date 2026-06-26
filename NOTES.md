@@ -1215,3 +1215,30 @@ I (4287) uds_esp32: TX ok: ID=0x123 DLC=8 data[0]=0x02
 Today the ESP32 successfully transmitted real CAN frames every 2 seconds using `twai_transmit()`. The important lesson was understanding that CAN transmission is not just software logging — the ESP32 controller and transceiver were physically generating differential CAN signals on the CAN bus lines.
 
 I also understood why `TWAI_MODE_NO_ACK` is necessary for single-node testing and how CAN acknowledgements normally work on a real automotive bus.
+
+## Day 17 - Sun May 17, 2026 - TWAI loopback explored, legacy API limitation discovered
+
+### Why we studied this
+Receive completion of half-duplex CAN node. Self-reception via .self = 1 flag in twai_message_t was supposed to enable loopback testing without a second node. The plan was to transmit a frame, have it loop back to our own RX queue, and log both TX ok and RX ok lines — proving the full signal path through the SN65HVD230 transceiver. This would complete the half-duplex node before moving to the two-task FreeRTOS pattern on Day 18.
+
+### What I tried (and what happened)
+Added .self = 1 to the twai_message_t in can_transmit_test(). Added a new can_receive_test() function calling twai_receive() with a 500 ms timeout. Called it in the app_main while loop right after transmit. Build succeeded, flash succeeded. Behavior: TX worked for ~6 frames (counter 0–5) then started failing with ESP_ERR_INVALID_STATE (error 263) — the controller went bus-off. RX timed out on every single cycle. Loopback did not work as expected. Code reverted with git checkout HEAD -- main/uds_esp32_main.c. Working tree confirmed clean.
+
+### What I learned by reading Espressif's twai_sender example
+
+- ESP-IDF v5.5 introduced a new TWAI API (esp_twai.h, esp_twai_onchip.h, twai_new_node_onchip, twai_node_transmit)
+- The legacy API (driver/twai.h, twai_driver_install, twai_transmit) still works for basic TX but Espressif's current examples have all moved to the new API
+- The .self loopback flag in the legacy API has unclear behavior in NO_ACK mode — appears to not deliver frames to the local RX queue reliably
+- Solo self-reception may require a hardware loopback (jumper CTX→CRX on the wire) or a second node
+- twai_self_test example does not exist in ESP-IDF v5.5.4 — was removed in an earlier version; twai_sender was the closest available reference
+
+### Decision made
+- Today's RX work reverted with git checkout HEAD -- file
+- Day 16's transmit-only code preserved
+- Plan: starting Day 18, migrate to the new ESP-IDF v5.5 TWAI API (esp_twai_onchip.h) — including a clean rewrite of can_init() and TX. RX will be retested under the new API.
+
+
+### One thing to remember
+This is what API deprecation looks like in real work. Espressif didn't break the old API — they just stopped advancing examples and tooling around it. New engineers reading the official examples will be confused if they then read older tutorials. The choice to migrate now (mid-project) is harder short-term but avoids learning a dying API.
+
+Lesson: when a feature doesn't work as documented, read the official example for the same task. The version delta between your tutorial and the current API may be the real bug.
