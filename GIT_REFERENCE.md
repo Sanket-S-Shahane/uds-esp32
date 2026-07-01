@@ -81,7 +81,7 @@ git commit -m "Initial commit"
 7. **Connect local repo to the GitHub repo:**
 git remote add origin git@github.com:Sanket-S-Shahane/my-project.git
    This tells your local repo where the GitHub copy lives.
-
+git branch -M main
 8. **Push for the first time:**
 git push -u origin main
    The `-u origin main` tells Git "remember this as the default upstream — next time just `git push` works."
